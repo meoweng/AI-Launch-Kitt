@@ -23,11 +23,25 @@ export function DownloadPage({
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [deployPhaseMessage, setDeployPhaseMessage] = useState<string | null>(null);
-  // Prefer live Vercel URL / v0 demo over the chat page (chat URLs aren't the site).
-  const websiteUrl =
-    absoluteApiUrl(deployment?.liveUrl ?? null) ??
-    absoluteApiUrl(build.previewUrl) ??
-    absoluteApiUrl(build.webUrl);
+  const [openingPreview, setOpeningPreview] = useState(false);
+
+  const handleOpenPreview = async () => {
+    if (openingPreview) return;
+    setOpeningPreview(true);
+    try {
+      const live = absoluteApiUrl(deployment?.liveUrl ?? null);
+      const url = live ?? (await launchKitApi.getBuildPreviewUrl(build.id));
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      setDownloadError(
+        error instanceof LaunchKitApiError
+          ? error.message
+          : "The live preview could not be opened.",
+      );
+    } finally {
+      setOpeningPreview(false);
+    }
+  };
 
   const handleDownload = async () => {
     if (!build.downloadUrl || downloading) return;
@@ -78,8 +92,8 @@ export function DownloadPage({
               </span>
               <button
                 type="button"
-                onClick={() => websiteUrl && window.open(websiteUrl, "_blank", "noopener,noreferrer")}
-                disabled={!websiteUrl}
+                onClick={() => { void handleOpenPreview(); }}
+                disabled={openingPreview}
                 aria-label="Open website preview in a new tab"
                 title="Open website preview in a new tab"
                 className="flex items-center justify-center rounded-[6px] disabled:opacity-40 disabled:cursor-not-allowed"
@@ -95,7 +109,7 @@ export function DownloadPage({
               </button>
             </div>
             <BrowserFramePreview
-              previewUrl={absoluteApiUrl(build.previewUrl)}
+              buildId={build.id}
               liveUrl={absoluteApiUrl(deployment?.liveUrl ?? null)}
             />
           </div>

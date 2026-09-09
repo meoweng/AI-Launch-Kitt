@@ -1,11 +1,34 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DownloadPage } from "./DownloadPage";
 import { makeBuild, makeDeployment } from "@/app/test/fixtures";
 
+const getBuildPreviewUrl = vi.fn();
+
+vi.mock("@/app/launchkit-api", async () => {
+  const actual = await vi.importActual<typeof import("@/app/launchkit-api")>(
+    "@/app/launchkit-api",
+  );
+  return {
+    ...actual,
+    launchKitApi: {
+      ...actual.launchKitApi,
+      getBuildPreviewUrl: (...args: unknown[]) => getBuildPreviewUrl(...args),
+      downloadBuild: vi.fn(),
+    },
+  };
+});
+
 describe("DownloadPage", () => {
-  it("renders the success state with download and a deferred deploy action", () => {
+  beforeEach(() => {
+    getBuildPreviewUrl.mockReset();
+    getBuildPreviewUrl.mockResolvedValue(
+      "https://demo-fresh.vusercontent.net/?__v0_token=abc",
+    );
+  });
+
+  it("renders the success state with download and a deferred deploy action", async () => {
     render(
       <DownloadPage
         build={makeBuild()}
@@ -19,7 +42,12 @@ describe("DownloadPage", () => {
     expect(screen.getByText("Your website is ready!")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Download" })).toBeEnabled();
     expect(screen.getByRole("button", { name: /Open Vercel Claim/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Open preview/i })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTitle("Generated website preview")).toHaveAttribute(
+        "src",
+        "https://demo-fresh.vusercontent.net/?__v0_token=abc",
+      );
+    });
   });
 
   it("disables download when the build has no archive", () => {
@@ -57,7 +85,7 @@ describe("DownloadPage", () => {
     expect(onDeploy).not.toHaveBeenCalled();
   });
 
-  it("embeds a Vercel live URL when the deployment is ready", () => {
+  it("embeds a Vercel live URL when the deployment is ready", async () => {
     render(
       <DownloadPage
         build={makeBuild({
@@ -74,8 +102,11 @@ describe("DownloadPage", () => {
       />,
     );
 
-    const iframe = screen.getByTitle("Generated website preview");
-    expect(iframe).toHaveAttribute("src", "https://northstar.vercel.app");
-    expect(screen.queryByRole("button", { name: /Open preview/i })).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTitle("Generated website preview")).toHaveAttribute(
+        "src",
+        "https://northstar.vercel.app",
+      );
+    });
   });
 });

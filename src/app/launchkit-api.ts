@@ -130,6 +130,9 @@ export type BuildView = {
   downloadUrl: string | null;
   retryAfterSeconds: number | null;
 };
+export type BuildPreviewView = {
+  url: string;
+};
 export type ProjectSummaryView = {
   id: string;
   status: string;
@@ -368,6 +371,17 @@ export const launchKitApi = {
       body: "{}",
     }),
   getBuild: (buildId: string) => request<BuildView>(`/builds/${buildId}`),
+  getBuildPreviewUrl: async (buildId: string): Promise<string> => {
+    const preview = await request<BuildPreviewView>(`/builds/${buildId}/preview`);
+    if (!preview.url) {
+      throw new LaunchKitApiError(
+        "The website preview URL is missing.",
+        502,
+        "preview_url_missing",
+      );
+    }
+    return preview.url;
+  },
   downloadBuild: async (downloadPath: string): Promise<void> => {
     const url = absoluteApiUrl(downloadPath);
     if (!url) {
