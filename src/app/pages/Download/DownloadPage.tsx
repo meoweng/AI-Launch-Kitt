@@ -7,7 +7,13 @@ import { absoluteApiUrl, BuildView, DeploymentView, launchKitApi, LaunchKitApiEr
 import { BrowserFramePreview } from "./components/BrowserFramePreview";
 import { DeployTooltip } from "./components/DeployTooltip";
 
-export function DownloadPage({ build, deployment, onDeploy, onBack, busy }: {
+export function DownloadPage({
+  build,
+  deployment,
+  onDeploy: _onDeploy,
+  onBack: _onBack,
+  busy,
+}: {
   build: BuildView;
   deployment: DeploymentView | null;
   onDeploy: () => Promise<void>;
@@ -16,7 +22,12 @@ export function DownloadPage({ build, deployment, onDeploy, onBack, busy }: {
 }) {
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
-  const websiteUrl = absoluteApiUrl(build.webUrl ?? build.previewUrl);
+  const [deployPhaseMessage, setDeployPhaseMessage] = useState<string | null>(null);
+  // Prefer live Vercel URL / v0 demo over the chat page (chat URLs aren't the site).
+  const websiteUrl =
+    absoluteApiUrl(deployment?.liveUrl ?? null) ??
+    absoluteApiUrl(build.previewUrl) ??
+    absoluteApiUrl(build.webUrl);
 
   const handleDownload = async () => {
     if (!build.downloadUrl || downloading) return;
@@ -83,7 +94,10 @@ export function DownloadPage({ build, deployment, onDeploy, onBack, busy }: {
                 <ExternalLink size={15} strokeWidth={1.8} aria-hidden="true" />
               </button>
             </div>
-            <BrowserFramePreview previewUrl={build.previewUrl} webUrl={build.webUrl} />
+            <BrowserFramePreview
+              previewUrl={absoluteApiUrl(build.previewUrl)}
+              liveUrl={absoluteApiUrl(deployment?.liveUrl ?? null)}
+            />
           </div>
 
           {/* Next Actions */}
@@ -122,7 +136,7 @@ export function DownloadPage({ build, deployment, onDeploy, onBack, busy }: {
                 )}
               </div>
 
-              {/* Deploy */}
+              {/* Deploy — Vercel claim deferred to phase 2 */}
               <div
                 className="flex flex-col gap-[16px] p-[24px] rounded-[16px] w-full sm:w-[280px] mx-auto"
                 style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", minHeight: "100%" }}
@@ -140,19 +154,29 @@ export function DownloadPage({ build, deployment, onDeploy, onBack, busy }: {
                   </div>
                 </div>
                 <button
-                  onClick={() => void onDeploy()}
-                  disabled={busy}
-                  className="w-full font-semibold text-[13px] py-[10px] rounded-[8px] uppercase"
-                  style={{ border: "1.5px solid #6fccdd", color: "#6fccdd", background: "transparent" }}
+                  type="button"
+                  onClick={() => {
+                    setDeployPhaseMessage(
+                      "This feature will be available in Phase 2 soon.",
+                    );
+                  }}
+                  aria-disabled="true"
+                  title="Coming in Phase 2"
+                  className="w-full font-semibold text-[13px] py-[10px] rounded-[8px] uppercase cursor-not-allowed"
+                  style={{
+                    border: "1.5px solid rgba(111,204,221,0.35)",
+                    color: "rgba(111,204,221,0.45)",
+                    background: "transparent",
+                    opacity: 0.65,
+                  }}
                 >
-                  {busy
-                    ? deployment?.message ?? "Deploying..."
-                    : deployment?.status === "ready_to_claim"
-                    ? "Open Vercel Claim"
-                    : deployment?.status === "failed" || deployment?.status === "cancelled"
-                    ? "Try Deployment Again"
-                    : "Deploy Now"}
+                  Open Vercel Claim
                 </button>
+                {deployPhaseMessage && (
+                  <div className="font-medium text-[12px]" style={{ color: "#6fccdd" }}>
+                    {deployPhaseMessage}
+                  </div>
+                )}
               </div>
             </div>
           </div>

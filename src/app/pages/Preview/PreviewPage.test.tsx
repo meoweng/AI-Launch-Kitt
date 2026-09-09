@@ -1,29 +1,25 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PreviewPage } from "./PreviewPage";
 import { makeMockups } from "@/app/test/fixtures";
 
+vi.mock("@/app/launchkit-api", async () => {
+  const actual = await vi.importActual<typeof import("@/app/launchkit-api")>(
+    "@/app/launchkit-api",
+  );
+  return {
+    ...actual,
+    launchKitApi: {
+      ...actual.launchKitApi,
+      getAssetContent: vi.fn(async () => "<html><body>mockup</body></html>"),
+    },
+  };
+});
+
 describe("PreviewPage", () => {
   beforeEach(() => {
-    // The page fetches each mockup's HTML on mount; keep it off the network.
-    // A fresh Response per call — a single shared one throws "Body has already
-    // been read" on the second mockup.
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockImplementation(() =>
-        Promise.resolve(
-          new Response("<html><body>mockup</body></html>", {
-            status: 200,
-            headers: { "Content-Type": "text/html" },
-          }),
-        ),
-      ),
-    );
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
+    vi.clearAllMocks();
   });
 
   it("renders a card per mockup with its direction", async () => {

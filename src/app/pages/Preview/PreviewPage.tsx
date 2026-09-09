@@ -8,6 +8,7 @@ import { TopHeader } from "@/app/components/common/TopHeader";
 import { ValidationError } from "@/app/components/common/ValidationError";
 import { launchKitApi, MockupView } from "@/app/launchkit-api";
 import { mockupSelectionSchema, MockupSelectionValues } from "@/app/wizard-validation";
+import { ScaledMockupPreview } from "./ScaledMockupPreview";
 
 export function PreviewPage({ mockups, selectedMockupId, onConfirm, onBack, busy }: {
   mockups: MockupView[];
@@ -163,12 +164,9 @@ export function PreviewPage({ mockups, selectedMockupId, onConfirm, onBack, busy
                   }}
                 >
                   {previewHtml[v.id] && (
-                    <iframe
-                      srcDoc={previewHtml[v.id]}
+                    <ScaledMockupPreview
+                      html={previewHtml[v.id]}
                       title={`${v.label} preview`}
-                      sandbox="allow-scripts"
-                      className="absolute inset-0 w-full h-full border-0"
-                      style={{ background: "white", zIndex: 2 }}
                     />
                   )}
                   {/* Nav bar */}
