@@ -54,7 +54,17 @@ export default function App() {
   const needsProject = !isAuthPage && !isHubPage;
   const needsCatalog = needsProject;
 
-  if (!isAuthPage && !isHubPage && (booting || (needsCatalog && !catalog) || (needsProject && !project))) {
+  // Always hold the spinner through auth bootstrap. Otherwise SSO return
+  // (?auth=success, no localStorage token yet) briefly paints the login page.
+  if (booting) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center" style={{ background: "#0b0b0b" }}>
+        <Spinner size={48} borderWidth={3} />
+      </div>
+    );
+  }
+
+  if (!isAuthPage && !isHubPage && ((needsCatalog && !catalog) || (needsProject && !project))) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center" style={{ background: "#0b0b0b" }}>
         <Spinner size={48} borderWidth={3} />

@@ -10,6 +10,29 @@ export type AuthTokenView = {
   expiresInSeconds: number;
 };
 
+export type AuthUserView = {
+  cognitoUserId?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  fullName?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  companyName?: string | null;
+  role?: string | null;
+  pool?: string | null;
+  emailVerified?: boolean | null;
+  phoneVerified?: boolean | null;
+  createdAt?: string | null;
+};
+
+export type AuthMeView = {
+  authenticated: boolean;
+  user: AuthUserView | null;
+  ownerId?: string | null;
+  licenseNumber?: string | null;
+  profile?: Record<string, unknown> | null;
+};
+
 export type Choice = { id: string; label: string; description: string };
 export type PaletteChoice = {
   id: string;
@@ -268,6 +291,35 @@ export async function fetchInnovationCityApiToken(): Promise<AuthTokenView> {
     );
   }
   return await response.json() as AuthTokenView;
+}
+
+/** IC /auth/me profile (cookie session). Useful for debugging owner/license matching. */
+export async function fetchInnovationCityMe(): Promise<AuthMeView> {
+  const response = await fetch(`${API_BASE_URL}/auth/me`, { credentials: "include" });
+  if (!response.ok) {
+    throw new LaunchKitApiError(
+      "The Innovation City profile could not be loaded.",
+      response.status,
+      "ic_profile_missing",
+    );
+  }
+  return await response.json() as AuthMeView;
+}
+
+/** Decode Launch Kit API JWT claims without verifying (client-side debug only). */
+export function readAccessTokenClaims(
+  accessToken: string | null = localStorage.getItem(AUTH_TOKEN_KEY),
+): Record<string, unknown> | null {
+  if (!accessToken) return null;
+  try {
+    const payload = accessToken.split(".")[1];
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), "=");
+    return JSON.parse(atob(padded)) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
 }
 
 export async function innovationCityLogout(): Promise<void> {

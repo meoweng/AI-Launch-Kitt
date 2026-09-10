@@ -11,6 +11,7 @@ import {
   createIdempotencyKey,
   DeploymentView,
   fetchInnovationCityApiToken,
+  fetchInnovationCityMe,
   hasAccessToken,
   innovationCityLogout,
   launchKitApi,
@@ -20,6 +21,7 @@ import {
   PageLayout,
   ProjectSummaryView,
   ProjectView,
+  readAccessTokenClaims,
   setAccessToken,
   waitForDeployment,
   waitForOperation,
@@ -31,8 +33,34 @@ import { clearProjectSession, readSession, removeSession, SESSION_KEYS, writeSes
 import { AiSummaryDraft, pickExtracted } from "../lib/ai-summary";
 import type { CustomPaletteValues, QuestionnaireValues } from "../wizard-validation";
 
+function initialPage(): Page {
+  // Returning from SSO: treat as signed-in immediately so we never paint login.
+  if (typeof window !== "undefined") {
+    const auth = new URLSearchParams(window.location.search).get("auth");
+    if (auth === "success") return "projects";
+  }
+  return hasAccessToken() ? "projects" : "login";
+}
+
+async function logAuthDebug(accessToken: string | null) {
+  const claims = readAccessTokenClaims(accessToken);
+  console.log("[launchkit] API JWT claims (owner_id = sub)", claims);
+  try {
+    const me = await fetchInnovationCityMe();
+    console.log("[launchkit] IC /auth/me", {
+      authenticated: me.authenticated,
+      ownerId: me.ownerId,
+      licenseNumber: me.licenseNumber,
+      user: me.user,
+      profile: me.profile,
+    });
+  } catch (cause) {
+    console.warn("[launchkit] IC /auth/me profile unavailable", cause);
+  }
+}
+
 export function useProjectSession() {
-  const [page, setPage] = useState<Page>(() => (hasAccessToken() ? "projects" : "login"));
+  const [page, setPage] = useState<Page>(initialPage);
   const [maxReachedStep, setMaxReachedStep] = useState(() => {
     const saved = readSession(SESSION_KEYS.maxReachedStep);
     return saved === null ? -1 : Number.parseInt(saved, 10);
@@ -102,6 +130,7 @@ export function useProjectSession() {
           try {
             const session = await fetchInnovationCityApiToken();
             setAccessToken(session.accessToken);
+            await logAuthDebug(session.accessToken);
           } catch {
             if (!cancelled) setError("Sign-in could not be completed. Please try again.");
           }
@@ -118,6 +147,7 @@ export function useProjectSession() {
           const session = await fetchInnovationCityApiToken();
           if (cancelled) return;
           setAccessToken(session.accessToken);
+          await logAuthDebug(session.accessToken);
         } catch {
           setPage("login");
           if (!cancelled) setBooting(false);
@@ -129,6 +159,8 @@ export function useProjectSession() {
           }
           return;
         }
+      } else {
+        await logAuthDebug(null);
       }
 
       try {
